@@ -3,6 +3,18 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
+#include <omp.h>
+
+#define USE_OPENMP true
+
+#if(USE_OPENMP)
+typedef struct 	Gen_params
+		{
+			FILE* f_out;
+			uint32_t min, max;
+		} 
+		Gen_params_t;
+#endif
 
 static uint8_t cipher_txt[13] = { 0xc7, 0x5a, 0xab, 0xd3,
 			     	0x3b, 0x29, 0xfd, 0x21,
@@ -26,9 +38,14 @@ int main(int argc, char * argv[])
 	return 0;
 }
 
-void gen_potential_K(FILE* f_out)
+#if(USE_OPENMP)
+void gen_potential_k(Gen_params_t* params)
 {
-	
+	params->
+#else
+ gen_potential_K(FILE* f_out)
+{
+#endif	
 	for(uint32_t key = 0; (key < UINT32_MAX); key++)
 	{ 
 		memset(buffer_S,0,256);
