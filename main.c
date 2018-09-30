@@ -27,7 +27,9 @@ typedef enum 	Gen_Err
 			KSA_Err,
 			PRGA_Err,
 			File_Err,
-			Print_Err
+			Print_Err,
+			Signal_Err,
+			Quit_Com
 		} 
 		Gen_Err_t;
 
@@ -41,6 +43,11 @@ static uint8_t buffer_K[14];	//cannot exceed 12
 
 static char    buffer_ans[14];
 */
+
+void master_signal_hndlr(int sig);
+
+Gen_Err_t sig_2_err(void);
+
 Gen_Err_t gen_potential_K(Gen_Params_t * const params);
 
 Gen_Err_t gen_potential_K_ksa(Gen_Params_t * const params);
@@ -55,7 +62,6 @@ int main(int argc, char * argv[])
 	uint8_t p_cnt = 0;///do something with this
 	char * intermediate_file_out_str[15] = "output_x.txt\0";
 	FILE * * fp_intermediate_arr = malloc(sizeof(FILE * *)((size_t)p_cnt+1));
-	
 	for(uint32_t fp_arr_idx; fp_arr_idx < (p_cnt-1); fp_arr_idx++, intermediate_file_out_str[7]++)
 	{
 		fp_intermediate_arr[fp_arr_idx] = fopen(intermediate_file_out_str, "a+");
@@ -87,9 +93,17 @@ int main(int argc, char * argv[])
 	return 0;
 }
 
-Gen_Err_t gen_potential_k(Gen_Params_t * const params)
+Gen_Err_t sig_2_err(void)
 {
 	Gen_Err_t err = No_Err;
+	//not sure where I thought I should go with this...
+	//probably want to check the signals based on which function this is being called from
+	return err;
+}
+
+Gen_Err_t gen_potential_k(Gen_Params_t * const params)
+{
+	Gen_Err_t err = sig_2_err();
 	for(uint32_t key = key_min; (key < key_max); key++)
 	{ 
 		params->buf_a[13] = '\0';
@@ -112,6 +126,7 @@ Gen_Err_t gen_potential_K_ksa(Gen_Params_t * const params)
 	{
 		buf_S_loc[i_ksa] = i_ksa;
 	} 
+	err = sig_2_err();
 	for(uint32_t i_ksa, j_ksa = 0; i_ksa < 256; i_ksa++)
 	{
 		j_ksa = ((j_ksa + buf_S_loc[i_ksa] + (((char *)&(key_loc))[((i_ksa)%4)])))%256;
@@ -119,6 +134,7 @@ Gen_Err_t gen_potential_K_ksa(Gen_Params_t * const params)
 		buf_S_loc[j_ksa] ^= buf_S_loc[i_ksa];
 		buf_S_loc[i_ksa] ^= buf_S_loc[j_ksa]; //swapped
 	}
+	err = sig_2_err();
 	return err;
 	
 }
@@ -143,6 +159,7 @@ Gen_Err_t gen_potential_K_prga(Gen_Params_t * const params)
 		buf_K_loc[k_elem] ^= buf_S_loc[idx_tmp];
 		buf_ans_loc[k_elem] = (char)((cipher_txt[k_elem]) ^ (buf_K_loc[k_elem]));
 	}	
+	err = sig_2_err();
 	return err;
 }
 
@@ -165,6 +182,7 @@ Gen_Err_t file_write_stage(FILE * const f_out_arg, char ** arr_buf_ans)
 			printf("Key: %0i,\t Possible Result: %s\n", key, buffer_ans);
 		}
 	}
+	err = sig_2_err();
 	return err;
 
 }
