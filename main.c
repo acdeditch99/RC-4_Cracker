@@ -62,6 +62,8 @@ int main(int argc, char * argv[])
 		
 	}
 	fp_intermediate_arr[p_cnt-1] = NULL;
+#else
+	FILE * fp = fopen("output.txt","a+");
 #endif 
 	printf("Running\n");
 
@@ -88,19 +90,12 @@ int main(int argc, char * argv[])
 Gen_Err_t gen_potential_k(Gen_Params_t * const params)
 {
 	Gen_Err_t err = No_Err;
-	const uint32_t key_max = params->max;
-	const uint32_t key_min = params->min;
-	uint8_t * buffer_S = params->buf_S;
-	uint8_t * buffer_K = params->buf_K;
-	char    * buffer_ans = params->buf_a;
 	for(uint32_t key = key_min; (key < key_max); key++)
 	{ 
-		memset(buffer_S,0,256);
-		memset(buffer_K,0,12);
-		memset(buffer_ans,0,13);
-		buffer_ans[13] = '\0';
-		if(err = gen_potential_K_ksa(params)) return err;
+		params->buf_a[13] = '\0';
+		if(err = gen_potential_K_ksa(params))  return err;
 		if(err = gen_potential_K_prga(params)) return err;
+		if(err = file_write_stage(NULL, NULL)) return err; //don't leave this like this
 	}
 	return err;
 }
@@ -109,10 +104,7 @@ Gen_Err_t gen_potential_K_ksa(Gen_Params_t * const params)
 {
 	char * const buf_S_loc = buf_S;
 	const uint32_t key_loc = key;
-	uint8_t * buffer_S = params->buf_S;
-	uint8_t * buffer_K = params->buf_K;
-	char    * buffer_ans = params->buf_a;
-	
+	uint8_t * buffer_S = params->buf_S;	
 	Gen_Err_t err = No_Err;
 	//KSA
 	//gen this S
@@ -133,9 +125,9 @@ Gen_Err_t gen_potential_K_ksa(Gen_Params_t * const params)
 
 Gen_Err_t gen_potential_K_prga(Gen_Params_t * const params)
 {
-	char * const buf_S_loc = buf_S;
-	char * const buf_K_loc = buf_K; 
-	char * const buf_ans_loc = buf_ans;
+	char * const buf_S_loc = params->buf_S;
+	char * const buf_K_loc = params->buf_K; 
+	char * const buf_ans_loc = params->buf_a;
 	Gen_Err_t err = No_Err;
 	//PRGA
 	//gen this K
