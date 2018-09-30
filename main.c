@@ -9,12 +9,15 @@
 #include <signal.h>
 
 //OpenMP
-#include <omp.h>
+//#include <omp.h>
 
 typedef struct 	Gen_Params
 		{
 			FILE * f_out;
 			uint32_t min, max; //both min and max are inclusive
+			uint8_t buf_S[256];
+			uint8_t buf_K[14];
+			char    buf_a[14];
 		} 
 		Gen_Params_t;
 
@@ -31,17 +34,18 @@ typedef enum 	Gen_Err
 static const uint8_t cipher_txt[13] = { 0xc7, 0x5a, 0xab, 0xd3,
 			     	0x3b, 0x29, 0xfd, 0x21,
 			     	0xbb, 0x84, 0xc3, 0x5e, '\0' };
+/*
 static uint8_t buffer_S[256];
 
 static uint8_t buffer_K[14];	//cannot exceed 12 
 
 static char    buffer_ans[14];
+*/
+Gen_Err_t gen_potential_K(Gen_Params_t * const params);
 
-Gen_Err_t gen_potential_K(Gen_Params_t * params);
+Gen_Err_t gen_potential_K_ksa(Gen_Params_t * const params);
 
-Gen_Err_t gen_potential_K_ksa(char * buf_S, const uint32_t key);
-
-Gen_Err_t gen_potential_K_prga(char * buf_S, char * buf_K);
+Gen_Err_t gen_potential_K_prga(Gen_Params_t * const params);
 
 int main(int argc, char * argv[])
 {
@@ -50,19 +54,31 @@ int main(int argc, char * argv[])
 #ifdef _OPENMP
 	uint8_t p_cnt = 0;///do something with this
 	char * intermediate_file_out_str[15] = "output_x.txt\0";
-	FILE * * fp_intermediate_arr = malloc(sizeof(FILE * *)((size_t)p_cnt+1))
-	for(uint32_t fp_arr_idx; fp_arr_idx < (p_cnt-1); fp_arr_idx++)
+	FILE * * fp_intermediate_arr = malloc(sizeof(FILE * *)((size_t)p_cnt+1));
+	
+	for(uint32_t fp_arr_idx; fp_arr_idx < (p_cnt-1); fp_arr_idx++, intermediate_file_out_str[7]++)
 	{
-		intermediate_file_out_str[7]++;
 		fp_intermediate_arr[fp_arr_idx] = fopen(intermediate_file_out_str, "a+");
 		
 	}
 	fp_intermediate_arr[p_cnt-1] = NULL;
 #endif 
 	printf("Running\n");
-	gen_potential_K(param);
+
 #ifdef _OPENMP
-	for(; fp_intermediate_arr != NULL ; fclose(*(fp_intermediate_arr++)));
+	for()
+#else
+	Gen_Params_t * param_i = malloc(sizeof(Gen_Params_t);
+	param_i->f_out = fp;
+	param_i->min = 0;
+	param_i->max = UINT32_MAX;
+#endif
+	memset((param_i->buf_S), 0, 256);
+	memset((param_i->buf_K), 0, 14);
+	memset((param_i->buf_a), 0, 14);
+	gen_potential_K(param_i);
+#ifdef _OPENMP
+	for(;fp_intermediate_arr ; fclose(*(fp_intermediate_arr++)), remove(*(fp_intermediate_arr++));
 #endif
 	printf("Done\n");
 	fclose(fp);
@@ -71,34 +87,32 @@ int main(int argc, char * argv[])
 
 Gen_Err_t gen_potential_k(Gen_Params_t * const params)
 {
-	Gen_Err_t first_err = No_Err;
+	Gen_Err_t err = No_Err;
 	const uint32_t key_max = params->max;
 	const uint32_t key_min = params->min;
+	uint8_t * buffer_S = params->buf_S;
+	uint8_t * buffer_K = params->buf_K;
+	char    * buffer_ans = params->buf_a;
 	for(uint32_t key = key_min; (key < key_max); key++)
 	{ 
 		memset(buffer_S,0,256);
 		memset(buffer_K,0,12);
 		memset(buffer_ans,0,13);
 		buffer_ans[13] = '\0';
-		gen_potential_K_ksa(buffer_S, (const uint32_t)key);
-		fflush(f_out);
-		fprintf(f_out, "\nUsing key: %0i, K resolves to: ", key);
-		for(int str_idx = 0; str_idx < 13; str_idx++)
-		{
-			fprintf(f_out,"%i", buffer_K[str_idx]);
-		}
-		fprintf(f_out, "\tWhile Answer resolves to: %s\n", buffer_ans);
-		if((strstr(buffer_ans, "KEY"))||(strstr(buffer_ans, "key")||(strstr(buffer_ans, "Key"))))
-		{
-			printf("Key: %0i,\t Possible Result: %s\n", key, buffer_ans);
-		}
+		if(err = gen_potential_K_ksa(params)) return err;
+		if(err = gen_potential_K_prga(params)) return err;
 	}
+	return err;
 }
 
-Gen_Err_t gen_potential_K_ksa(char * const buf_S, const uint32_t key)
+Gen_Err_t gen_potential_K_ksa(Gen_Params_t * const params)
 {
 	char * const buf_S_loc = buf_S;
 	const uint32_t key_loc = key;
+	uint8_t * buffer_S = params->buf_S;
+	uint8_t * buffer_K = params->buf_K;
+	char    * buffer_ans = params->buf_a;
+	
 	Gen_Err_t err = No_Err;
 	//KSA
 	//gen this S
@@ -117,7 +131,7 @@ Gen_Err_t gen_potential_K_ksa(char * const buf_S, const uint32_t key)
 	
 }
 
-Gen_Err_t gen_potential_K_prga(char * const buf_S, char * const buf_K, char * const buf_ans)
+Gen_Err_t gen_potential_K_prga(Gen_Params_t * const params)
 {
 	char * const buf_S_loc = buf_S;
 	char * const buf_K_loc = buf_K; 
@@ -140,4 +154,25 @@ Gen_Err_t gen_potential_K_prga(char * const buf_S, char * const buf_K, char * co
 	return err;
 }
 
+Gen_Err_t file_write_stage(FILE * const f_out_arg, char ** arr_buf_ans)
+{
+	const char key_resolution_f_str[40] = "\n\nUsing key: %0i, K resolves to: \0";
+	const char ans_resolution_f_str[40] = "\nWhile Answer resolves to %s\n\0";
+	Gen_Err_t err = No_Err;
+	f_out = f_out_arg;
+	for(int i = 0; arr_buf_ans[i]; i++)
+	{
+		fprintf(f_out, key_resolution_f_str, key);
+		for(int str_idx = 0; str_idx < 13; str_idx++)
+		{
+			fprintf(f_out,'%i', buffer_K[str_idx]);
+		}
+		fprintf(f_out, ans_resolution_f_str, buffer_ans);
+		if((strstr(buffer_ans, "KEY"))||(strstr(buffer_ans, "key")||(strstr(buffer_ans, "Key"))))
+		{
+			printf("Key: %0i,\t Possible Result: %s\n", key, buffer_ans);
+		}
+	}
+	return err;
 
+}
